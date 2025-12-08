@@ -52,32 +52,31 @@ class WeatherViewModel : ViewModel() {
             val latitude = -8.69
             val longitude = -35.59
 
-            repository.getCurrentWeather(latitude, longitude)
-                .onSuccess { weatherResponse ->
-                    val weather = weatherResponse.currentWeather
-                    val description = getWeatherDescription(weather.weatherCode)
-                    val suggestion = getSuggestion(weather.temperature, weather.weatherCode)
+            try {
+                val weatherResponse = repository.getWeatherForecast(latitude, longitude)
+                val weather = weatherResponse.currentWeather
+                val description = getWeatherDescription(weather.weatherCode)
+                val suggestion = getSuggestion(weather.temperature, weather.weatherCode)
 
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            temperature = "${weather.temperature}°C",
-                            weatherDescription = description,
-                            suggestion = suggestion
-                        )
-                    }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        temperature = "${weather.temperature}°C",
+                        weatherDescription = description,
+                        suggestion = suggestion
+                    )
                 }
-                .onFailure { exception ->
-                    val errorMessage = "Erro ao buscar dados: ${exception.message}"
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = errorMessage
-                        )
-                    }
-                    // Envia um evento para a UI exibir um Toast.
-                    _uiEvent.emit(UiEvent.ShowToast(errorMessage))
+            } catch (exception: Exception) {
+                val errorMessage = "Erro ao buscar dados: ${exception.message}"
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
                 }
+                // Envia um evento para a UI exibir um Toast.
+                _uiEvent.emit(UiEvent.ShowToast(errorMessage))
+            }
         }
     }
 

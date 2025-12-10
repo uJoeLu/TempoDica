@@ -3,12 +3,16 @@ package com.example.tempodica.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tempodica.repository.WeatherRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 
 // Estado da UI: representa tudo que a tela pode exibir.
 data class WeatherUiState(
@@ -38,8 +42,23 @@ class WeatherViewModel : ViewModel() {
     val uiEvent = _uiEvent.asSharedFlow()
 
     init {
-        // Busca o clima assim que o ViewModel é criado.
-        fetchWeather()
+        // Inicia um fluxo que busca o clima repetidamente
+        startWeatherUpdates()
+    }
+
+    private fun startWeatherUpdates() {
+        viewModelScope.launch {
+            // Cria um fluxo que emite um valor a cada 15 minutos (900.000 milissegundos)
+            flow {
+                while (true) {
+                    emit(Unit) // Emite um valor para acionar a busca
+                    delay(600_000L) // Aguarda 10 minutos
+                }
+            }.collect {
+                // Cada vez que o fluxo emitir, chama a função para buscar o clima
+                fetchWeather()
+            }
+        }
     }
 
     fun fetchWeather() {
@@ -66,15 +85,40 @@ class WeatherViewModel : ViewModel() {
                         suggestion = suggestion
                     )
                 }
-            } catch (exception: Exception) {
-                val errorMessage = "Erro ao buscar dados: ${exception.message}"
+            } catch (e: IOException) {
+                // Erro de rede: Ocorreu um problema de conexão com o servidor.
+                // Isso acontece se o dispositivo estiver offline ou a rede instável.
+                val errorMessage = "Erro de conexão. Verifique sua internet."
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         errorMessage = errorMessage
                     )
                 }
-                // Envia um evento para a UI exibir um Toast.
+                _uiEvent.emit(UiEvent.ShowToast(errorMessage))
+
+            } catch (e: HttpException) {
+                // Erro HTTP: O servidor respondeu, mas com um código de erro (ex: 404, 500).
+                // Isso significa que a requisição em si estava malformada ou o servidor teve um problema.
+                val errorMessage = "O serviço está indisponível no momento. Tente mais tarde."
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
+                }
+                _uiEvent.emit(UiEvent.ShowToast(errorMessage))
+
+            } catch (e: Exception) {
+                // Erro genérico: Qualquer outra exceção inesperada que não foi capturada acima.
+                // Pode ser um erro de parsing do JSON (se a resposta do servidor mudar), etc.
+                val errorMessage = "Ocorreu um erro inesperado."
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
+                }
                 _uiEvent.emit(UiEvent.ShowToast(errorMessage))
             }
         }

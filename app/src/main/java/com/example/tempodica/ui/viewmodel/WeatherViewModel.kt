@@ -3,12 +3,16 @@ package com.example.tempodica.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tempodica.repository.WeatherRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 
 // ---- UI STATE ----
 data class WeatherUiState(
@@ -41,7 +45,6 @@ class WeatherViewModel(
 
     init {
         fetchWeather()
-    }
 
     fun fetchWeather() {
         viewModelScope.launch {
@@ -63,18 +66,17 @@ class WeatherViewModel(
                         errorMessage = null
                     )
                 }
-
+                
             } catch (e: Exception) {
                 val message = "Erro ao buscar dados do clima. Tente novamente."
 
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = message
+                        errorMessage = errorMessage
                     )
                 }
-
-                _uiEvent.emit(UiEvent.ShowToast(message))
+                _uiEvent.emit(UiEvent.ShowToast(errorMessage))
             }
         }
     }

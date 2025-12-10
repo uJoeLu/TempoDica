@@ -54,7 +54,7 @@ TempoDica-main/
 #### 1. Clonar o Projeto
 
 ```bash
-git clone <url_do_repositorio>
+git clone https://github.com/uJoeLu/TempoDica
 cd TempoDica-main
 ```
 

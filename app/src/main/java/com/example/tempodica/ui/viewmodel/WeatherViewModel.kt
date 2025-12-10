@@ -3,12 +3,10 @@ package com.example.tempodica.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tempodica.repository.WeatherRepository
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -44,8 +42,14 @@ class WeatherViewModel(
     val uiEvent = _uiEvent.asSharedFlow()
 
     init {
+        // Busca inicial ao criar o ViewModel
         fetchWeather()
+    }
 
+    /**
+     * Busca o clima do repositório e atualiza o estado.
+     * Trata erros de rede e de HTTP separadamente para mensagens mais amigáveis.
+     */
     fun fetchWeather() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -53,6 +57,14 @@ class WeatherViewModel(
             try {
                 val response = repository.getWeatherForecast(DEFAULT_LAT, DEFAULT_LON)
                 val current = response.currentWeather
+
+                // Em caso de resposta inesperada, proteja-se (defensive coding)
+                if (current == null) {
+                    val msg = "Resposta inválida do servidor."
+                    _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
+                    _uiEvent.emit(UiEvent.ShowToast(msg))
+                    return@launch
+                }
 
                 val description = getWeatherDescription(current.weatherCode)
                 val suggestion = getSuggestion(current.temperature, current.weatherCode)
@@ -66,17 +78,24 @@ class WeatherViewModel(
                         errorMessage = null
                     )
                 }
-                
-            } catch (e: Exception) {
-                val message = "Erro ao buscar dados do clima. Tente novamente."
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = errorMessage
-                    )
-                }
-                _uiEvent.emit(UiEvent.ShowToast(errorMessage))
+            } catch (e: IOException) {
+                // Erro de I/O: geralmente problema de rede
+                val msg = "Falha de rede. Verifique sua conexão."
+                _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
+                _uiEvent.emit(UiEvent.ShowToast(msg))
+
+            } catch (e: HttpException) {
+                // Erro HTTP: servidor retornou erro
+                val msg = "Erro no servidor (${e.code()}). Tente novamente mais tarde."
+                _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
+                _uiEvent.emit(UiEvent.ShowToast(msg))
+
+            } catch (e: Exception) {
+                // Erro genérico
+                val msg = "Erro ao buscar dados do clima. Tente novamente."
+                _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
+                _uiEvent.emit(UiEvent.ShowToast(msg))
             }
         }
     }

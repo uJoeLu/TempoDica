@@ -8,20 +8,36 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class DetailsViewModel : ViewModel() {
+data class DetailsUiState(
+    val isLoading: Boolean = false,
+    val weather: WeatherResponse? = null,
+    val errorMessage: String? = null
+)
 
-    private val weatherRepository = WeatherRepository()
+class DetailsViewModel(
+    private val repository: WeatherRepository = WeatherRepository()
+) : ViewModel() {
 
-    private val _weatherState = MutableStateFlow<WeatherResponse?>(null)
-    val weatherState: StateFlow<WeatherResponse?> = _weatherState
+    private val _uiState = MutableStateFlow(DetailsUiState())
+    val uiState: StateFlow<DetailsUiState> = _uiState
 
     fun fetchWeatherForecast(latitude: Double, longitude: Double) {
+        _uiState.value = DetailsUiState(isLoading = true)
+
         viewModelScope.launch {
             try {
-                val response = weatherRepository.getWeatherForecast(latitude, longitude)
-                _weatherState.value = response
+                val response = repository.getWeatherForecast(latitude, longitude)
+
+                _uiState.value = DetailsUiState(
+                    isLoading = false,
+                    weather = response
+                )
+
             } catch (e: Exception) {
-                // Tratar o erro de forma apropriada
+                _uiState.value = DetailsUiState(
+                    isLoading = false,
+                    errorMessage = "Não foi possível carregar os detalhes: ${e.localizedMessage}"
+                )
             }
         }
     }

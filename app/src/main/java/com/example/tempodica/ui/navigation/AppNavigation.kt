@@ -1,41 +1,46 @@
 package com.example.tempodica.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.tempodica.ui.screens.DetailsScreen
 import com.example.tempodica.ui.screens.HomeScreen
 
-// Objeto para manter as rotas como constantes, evitando erros de digitação.
+/**
+ * Objeto que centraliza as rotas da aplicação.
+ * Facilita manutenção e evita erros de digitação.
+ */
 object AppDestinations {
-    const val HOME_ROUTE = "home"
-    const val DETAILS_ROUTE = "details"
+    const val HOME = "home"
+    const val DETAILS = "details"
 }
 
+/**
+ * Gerencia a navegação principal do aplicativo.
+ */
 @Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
+fun AppNavigation(navController: NavHostController = rememberNavController()) {
 
     NavHost(
         navController = navController,
-        startDestination = AppDestinations.HOME_ROUTE
+        startDestination = AppDestinations.HOME
     ) {
-        // Define a HomeScreen como o destino inicial.
-        composable(AppDestinations.HOME_ROUTE) {
+
+        /** Tela inicial (Home). */
+        composable(route = AppDestinations.HOME) {
             HomeScreen(
                 onNavigateToDetails = {
-                    // Define a ação de navegação para a tela de detalhes.
-                    navController.navigate(AppDestinations.DETAILS_ROUTE)
+                    navController.navigate(AppDestinations.DETAILS)
                 }
             )
         }
 
-        // Define a rota para a DetailsScreen.
-        composable(AppDestinations.DETAILS_ROUTE) {
+        /** Tela de detalhes. */
+        composable(route = AppDestinations.DETAILS) {
             DetailsScreen(
                 onNavigateUp = {
-                    // Define a ação para voltar à tela anterior.
                     navController.navigateUp()
                 }
             )

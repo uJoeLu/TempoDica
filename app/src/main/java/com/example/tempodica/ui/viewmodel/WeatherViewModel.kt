@@ -26,8 +26,14 @@ sealed interface UiEvent {
     data class ShowToast(val message: String) : UiEvent
 }
 
+import com.example.tempodica.data.local.MeasuredWeather
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+
+
 class WeatherViewModel(
-    private val repository: WeatherRepository = WeatherRepository()
+    private val repository: com.example.tempodica.repository.WeatherRepository = com.example.tempodica.repository.WeatherRepository()
 ) : ViewModel() {
 
     companion object {
@@ -45,6 +51,11 @@ class WeatherViewModel(
         // Busca inicial ao criar o ViewModel
         fetchWeather()
     }
+
+    // Últimas medições (expostas como StateFlow para a UI). Se o repo não tiver DAO, expõe lista vazia.
+    val lastMeasurements: StateFlow<List<MeasuredWeather>> = (
+        repository.getLastMeasurements(5) ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    ).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     /**
      * Busca o clima do repositório e atualiza o estado.
@@ -69,14 +80,19 @@ class WeatherViewModel(
                 val description = getWeatherDescription(current.weatherCode)
                 val suggestion = getSuggestion(current.temperature, current.weatherCode)
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        temperature = "${current.temperature}°C",
-                        weatherDescription = description,
-                        suggestion = suggestion,
-                        errorMessage = null
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            temperature = "${current.temperature}°C",
+                            weatherDescription = description,
+                            suggestion = suggestion,
+                            errorMessage = null
+                        )
+                }
+                // tenta salvar a medição localmente (não falha a UI se houver erro)
+                try {
+                    repository.saveMeasurement(current.temperature, description)
+                } catch (_: Exception) {
                 }
 
             } catch (e: IOException) {

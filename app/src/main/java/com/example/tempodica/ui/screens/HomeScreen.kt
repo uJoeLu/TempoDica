@@ -20,12 +20,13 @@ import kotlinx.coroutines.flow.collectLatest
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: WeatherViewModel = viewModel(),
     onNavigateToDetails: () -> Unit
 ) {
+    val context = LocalContext.current
+    val factory = com.example.tempodica.ui.viewmodel.WeatherViewModelFactory(context.applicationContext)
+    val viewModel: WeatherViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
 
     // Collect one-shot events and show a Snackbar (with fallback to Toast).
     LaunchedEffect(viewModel) {
@@ -106,6 +107,23 @@ fun HomeScreen(
                         onNavigateToDetails = onNavigateToDetails,
                         isCompact = isCompact
                     )
+                    // exibe últimas medições salvas (se houver)
+                    val last by viewModel.lastMeasurements.collectAsState()
+                    if (last.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        androidx.compose.material3.Text(text = "Últimas medições:", style = MaterialTheme.typography.titleSmall)
+                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                            items(last) { m ->
+                                androidx.compose.material3.Card { 
+                                    androidx.compose.foundation.layout.Column(modifier = Modifier.padding(8.dp)) {
+                                        androidx.compose.material3.Text(text = "${'$'}{m.temperature}°C")
+                                        androidx.compose.material3.Text(text = m.description, style = MaterialTheme.typography.bodySmall)
+                                        androidx.compose.material3.Text(text = java.time.Instant.ofEpochMilli(m.timestamp).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime().toString(), style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
